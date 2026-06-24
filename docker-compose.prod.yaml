@@ -1,0 +1,73 @@
+services:
+
+    # ── Laravel PHP-FPM Application ────────────────────────────────────────────
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile.prod
+        container_name: bitbyworld_app
+        restart: unless-stopped
+        working_dir: /var/www
+        environment:
+            APP_ENV: production
+            APP_DEBUG: false
+        volumes:
+            # Persist uploaded files (lesson images, audio) across deployments
+            - storage_data:/var/www/storage/app
+            # Persist log files
+            - ./storage/logs:/var/www/storage/logs
+        networks:
+            - bitbyworld
+        depends_on:
+            mysql:
+                condition: service_healthy
+
+    # ── Nginx Web Server ───────────────────────────────────────────────────────
+    nginx:
+        image: nginx:1.25-alpine
+        container_name: bitbyworld_nginx
+        restart: unless-stopped
+        ports:
+            - "8000:80"      # Host port 8000 → Nginx port 80 inside Docker
+        volumes:
+            # Serve static files (public/, public/build/, public/storage)
+            - .:/var/www
+            # Persist storage symlink for uploaded files
+            - storage_data:/var/www/storage/app
+            # Nginx config
+            - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf
+        networks:
+            - bitbyworld
+        depends_on:
+            - app
+
+    # ── MySQL 8.4 Database ─────────────────────────────────────────────────────
+    mysql:
+        image: mysql:8.4
+        container_name: bitbyworld_mysql
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            # Persist database data across container restarts
+            - mysql_data:/var/lib/mysql
+        networks:
+            - bitbyworld
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}"]
+            retries: 5
+            timeout: 5s
+            interval: 10s
+
+networks:
+    bitbyworld:
+        driver: bridge
+
+volumes:
+    mysql_data:
+        driver: local
+    storage_data:
+        driver: local
