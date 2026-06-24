@@ -27,15 +27,17 @@ services:
         image: nginx:1.25-alpine
         container_name: bitbyworld_nginx
         restart: unless-stopped
+        entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
         ports:
             - "8000:80"      # Host port 8000 → Nginx port 80 inside Docker
         volumes:
             # Serve static files (public/, public/build/, public/storage)
             - .:/var/www
-            # Persist storage symlink for uploaded files
+            # Persist uploaded files (lesson images, audio) across deployments
             - storage_data:/var/www/storage/app
-            # Nginx config
+            # Nginx config + startup script (creates public/storage symlink)
             - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf
+            - ./docker/nginx/entrypoint.sh:/docker-entrypoint.sh:ro
         networks:
             - bitbyworld
         depends_on:
