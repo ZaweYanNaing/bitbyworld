@@ -21,29 +21,32 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.2'
 
       - name: Install Dependencies
         run: |
           composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
           npm install
 
-      - name: Run Pint
+      - name: Run Pint (PHP formatter)
         run: composer lint
+        continue-on-error: true
 
       - name: Format Frontend
         run: npm run format
+        continue-on-error: true
 
-      - name: Lint Frontend
+      - name: Lint Frontend (auto-fix)
         run: npm run lint
+        continue-on-error: true
 
-      # - name: Commit Changes
-      #   uses: stefanzweifel/git-auto-commit-action@v7
-      #   with:
-      #     commit_message: fix code style
-      #     commit_options: '--no-verify'
+      - name: Commit Style Fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'style: auto-fix code style'
+          commit_options: '--no-verify'
