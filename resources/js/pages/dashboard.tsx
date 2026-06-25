@@ -31,7 +31,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ courses = [], completedLessonIds = [] }: DashboardProps) {
-    const { auth } = usePage().props;
+    const { auth, storageUrl } = usePage().props;
     const user = auth.user;
 
     // Map courses with progress calculations
@@ -150,7 +150,7 @@ export default function Dashboard({ courses = [], completedLessonIds = [] }: Das
                                         <div className="size-16 shrink-0 overflow-hidden rounded-2xl bg-sky-50 p-2 dark:bg-neutral-800">
                                             {course.thumbnail_path ? (
                                                 <img 
-                                                    src={`/storage/${course.thumbnail_path}`} 
+                                                    src={`${storageUrl}/${course.thumbnail_path}`} 
                                                     alt={course.title}
                                                     className="size-full object-contain"
                                                     onError={(e) => {
@@ -230,7 +230,7 @@ export default function Dashboard({ courses = [], completedLessonIds = [] }: Das
                                         <div className="size-16 shrink-0 overflow-hidden rounded-2xl bg-amber-100/50 p-2 dark:bg-amber-950/50">
                                             {course.thumbnail_path ? (
                                                 <img 
-                                                    src={`/storage/${course.thumbnail_path}`} 
+                                                    src={`${storageUrl}/${course.thumbnail_path}`} 
                                                     alt={course.title}
                                                     className="size-full object-contain"
                                                     onError={(e) => {

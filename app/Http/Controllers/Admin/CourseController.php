@@ -35,7 +35,7 @@ class CourseController extends Controller
 
         $thumbnailPath = null;
         if ($request->hasFile('thumbnail_file')) {
-            $thumbnailPath = $request->file('thumbnail_file')->store('courses', 'public');
+            $thumbnailPath = $request->file('thumbnail_file')->store('courses', 'r2');
         }
 
         Course::create([
@@ -66,9 +66,9 @@ class CourseController extends Controller
         if ($request->hasFile('thumbnail_file')) {
             // Delete old thumbnail if exists
             if ($course->thumbnail_path) {
-                Storage::disk('public')->delete($course->thumbnail_path);
+                Storage::disk('r2')->delete($course->thumbnail_path);
             }
-            $data['thumbnail_path'] = $request->file('thumbnail_file')->store('courses', 'public');
+            $data['thumbnail_path'] = $request->file('thumbnail_file')->store('courses', 'r2');
         }
 
         $course->update($data);
@@ -83,7 +83,7 @@ class CourseController extends Controller
     {
         // Delete uploaded files
         if ($course->thumbnail_path) {
-            Storage::disk('public')->delete($course->thumbnail_path);
+            Storage::disk('r2')->delete($course->thumbnail_path);
         }
 
         $course->delete();

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -44,6 +44,7 @@ interface ShowProps {
 }
 
 export default function Show({ course, lessons = [], completedLessonIds = [] }: ShowProps) {
+    const { storageUrl } = usePage().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: course.title, href: `/courses/${course.id}` },
@@ -424,7 +425,7 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                                 <AnimatePresence mode="wait">
                                                     <motion.img
                                                         key={currentImageIndex}
-                                                        src={`/storage/${activeLesson.images![currentImageIndex].image_path}`}
+                                                        src={`${storageUrl}/${activeLesson.images![currentImageIndex].image_path}`}
                                                         alt={`Lesson image ${currentImageIndex + 1}`}
                                                         initial={{ opacity: 0, scale: 0.97 }}
                                                         animate={{ opacity: 1, scale: 1 }}
@@ -502,7 +503,7 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                                     <AnimatePresence mode="wait">
                                                         <motion.img
                                                             key={currentImageIndex}
-                                                            src={`/storage/${activeLesson!.images![currentImageIndex].image_path}`}
+                                                            src={`${storageUrl}/${activeLesson!.images![currentImageIndex].image_path}`}
                                                             alt={`Lesson image ${currentImageIndex + 1}`}
                                                             initial={{ opacity: 0, x: 30 }}
                                                             animate={{ opacity: 1, x: 0 }}
@@ -594,7 +595,7 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                                 {/* Hidden Audio Tag */}
                                                 <audio
                                                     ref={audioRef}
-                                                    src={`/storage/${activeAudioTrack.audio_path}`}
+                                                    src={`${storageUrl}/${activeAudioTrack.audio_path}`}
                                                     onTimeUpdate={handleTimeUpdate}
                                                     onLoadedMetadata={handleLoadedMetadata}
                                                     onEnded={handleAudioEnded}

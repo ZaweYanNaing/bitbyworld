@@ -43,7 +43,7 @@ class LessonController extends Controller
         // Save multiple images
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $imageFile) {
-                $path = $imageFile->store('courses', 'public');
+                $path = $imageFile->store('courses', 'r2');
                 $lesson->images()->create([
                     'image_path' => $path,
                 ]);
@@ -55,7 +55,7 @@ class LessonController extends Controller
             $files = $request->file('audio_files');
             $titles = $request->input('audio_titles', []);
             foreach ($files as $index => $audioFile) {
-                $path = $audioFile->store('courses', 'public');
+                $path = $audioFile->store('courses', 'r2');
                 // Get corresponding title or fall back to file's original name
                 $title = !empty($titles[$index]) ? $titles[$index] : pathinfo($audioFile->getClientOriginalName(), PATHINFO_FILENAME);
                 $lesson->audios()->create([
@@ -94,7 +94,7 @@ class LessonController extends Controller
         // Add more images if uploaded
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $imageFile) {
-                $path = $imageFile->store('courses', 'public');
+                $path = $imageFile->store('courses', 'r2');
                 $lesson->images()->create([
                     'image_path' => $path,
                 ]);
@@ -106,7 +106,7 @@ class LessonController extends Controller
             $files = $request->file('audio_files');
             $titles = $request->input('audio_titles', []);
             foreach ($files as $index => $audioFile) {
-                $path = $audioFile->store('courses', 'public');
+                $path = $audioFile->store('courses', 'r2');
                 $title = !empty($titles[$index]) ? $titles[$index] : pathinfo($audioFile->getClientOriginalName(), PATHINFO_FILENAME);
                 $lesson->audios()->create([
                     'title' => $title,
@@ -125,13 +125,13 @@ class LessonController extends Controller
     {
         // Delete all images from storage and database
         foreach ($lesson->images as $image) {
-            Storage::disk('public')->delete($image->image_path);
+            Storage::disk('r2')->delete($image->image_path);
             $image->delete();
         }
 
         // Delete all audios from storage and database
         foreach ($lesson->audios as $audio) {
-            Storage::disk('public')->delete($audio->audio_path);
+            Storage::disk('r2')->delete($audio->audio_path);
             $audio->delete();
         }
 
@@ -161,7 +161,7 @@ class LessonController extends Controller
      */
     public function destroyAudio(LessonAudio $audio)
     {
-        Storage::disk('public')->delete($audio->audio_path);
+        Storage::disk('r2')->delete($audio->audio_path);
         $audio->delete();
 
         return back()->with('success', 'Audio track deleted.');
@@ -172,7 +172,7 @@ class LessonController extends Controller
      */
     public function destroyImage(LessonImage $image)
     {
-        Storage::disk('public')->delete($image->image_path);
+        Storage::disk('r2')->delete($image->image_path);
         $image->delete();
 
         return back()->with('success', 'Image deleted.');

@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -48,6 +48,7 @@ interface AdminCoursesProps {
 }
 
 export default function Courses({ courses = [] }: AdminCoursesProps) {
+    const { storageUrl } = usePage().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Manage Courses', href: '/admin/courses' },
@@ -276,7 +277,7 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                                                 <div className="size-14 rounded-2xl bg-slate-50 dark:bg-neutral-800 p-1 shrink-0 overflow-hidden">
                                                     {course.thumbnail_path ? (
                                                         <img 
-                                                            src={`/storage/${course.thumbnail_path}`} 
+                                                            src={`${storageUrl}/${course.thumbnail_path}`} 
                                                             alt={course.title}
                                                             className="size-full object-contain"
                                                             onError={(e) => {
@@ -520,7 +521,7 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                                                         {editingLesson.images.map((img) => (
                                                             <div key={img.id} className="relative group rounded-xl overflow-hidden border border-slate-200/50 dark:border-neutral-800 aspect-square bg-white flex items-center justify-center p-1">
                                                                 <img 
-                                                                    src={`/storage/${img.image_path}`} 
+                                                                    src={`${storageUrl}/${img.image_path}`} 
                                                                     alt="Lesson image" 
                                                                     className="max-h-full max-w-full object-contain rounded-lg"
                                                                 />
