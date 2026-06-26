@@ -7,6 +7,8 @@ use App\Http\Controllers\CourseController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\LessonController as AdminLessonController;
+use App\Http\Controllers\Admin\QuizController as AdminQuizController;
+use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -37,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Student Course Player & Actions
     Route::get('courses/{course}', [CourseController::class, 'show'])->name('courses.show');
     Route::post('lessons/{lesson}/complete', [CourseController::class, 'completeLesson'])->name('lessons.complete');
+    Route::post('quizzes/{quiz}/submit', [CourseController::class, 'submitQuiz'])->name('quizzes.submit');
 });
 
 // Admin Only Routes
@@ -51,6 +54,16 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::post('courses/{course}/lessons', [AdminLessonController::class, 'store'])->name('admin.lessons.store');
     Route::post('lessons/{lesson}', [AdminLessonController::class, 'update'])->name('admin.lessons.update');
     Route::delete('lessons/{lesson}', [AdminLessonController::class, 'destroy'])->name('admin.lessons.destroy');
+
+    // Quiz Management
+    Route::post('courses/{course}/quizzes', [AdminQuizController::class, 'store'])->name('admin.quizzes.store');
+    Route::put('quizzes/{quiz}', [AdminQuizController::class, 'update'])->name('admin.quizzes.update');
+    Route::delete('quizzes/{quiz}', [AdminQuizController::class, 'destroy'])->name('admin.quizzes.destroy');
+
+    // Quiz Question Management
+    Route::post('quizzes/{quiz}/questions', [AdminQuestionController::class, 'store'])->name('admin.questions.store');
+    Route::put('questions/{question}', [AdminQuestionController::class, 'update'])->name('admin.questions.update');
+    Route::delete('questions/{question}', [AdminQuestionController::class, 'destroy'])->name('admin.questions.destroy');
 
     // Lesson Media Management
     Route::patch('lesson-audios/{audio}', [AdminLessonController::class, 'updateAudioTitle'])->name('admin.lesson-audios.update-title');

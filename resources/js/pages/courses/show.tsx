@@ -37,13 +37,56 @@ interface Course {
     thumbnail_path: string | null;
 }
 
+interface QuizOption {
+    id: number;
+    question_id: number;
+    option_text: string;
+    is_correct: boolean;
+}
+
+interface QuizQuestion {
+    id: number;
+    quiz_id: number;
+    question_text: string;
+    sort_order: number;
+    options: QuizOption[];
+}
+
+interface Quiz {
+    id: number;
+    course_id: number;
+    title: string;
+    description: string | null;
+    questions: QuizQuestion[];
+    created_at: string;
+    updated_at: string;
+}
+
+interface QuizAttempt {
+    id: number;
+    user_id: number;
+    quiz_id: number;
+    score: number;
+    total_questions: number;
+    answers: Record<number, number>;
+    created_at: string;
+}
+
 interface ShowProps {
     course: Course;
     lessons: Lesson[];
     completedLessonIds: number[];
+    quizzes?: Quiz[];
+    quizAttempts?: QuizAttempt[];
 }
 
-export default function Show({ course, lessons = [], completedLessonIds = [] }: ShowProps) {
+export default function Show({ 
+    course, 
+    lessons = [], 
+    completedLessonIds = [],
+    quizzes = [],
+    quizAttempts = []
+}: ShowProps) {
     const { storageUrl } = usePage().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -53,6 +96,7 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
     // Find first uncompleted lesson, or default to first lesson
     const initialLesson = lessons.find(l => !completedLessonIds.includes(l.id)) || lessons[0] || null;
     const [activeLesson, setActiveLesson] = useState<Lesson | null>(initialLesson);
+    const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
 
     // Carousel Image State
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -296,7 +340,10 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                 return (
                                     <button
                                         key={lesson.id}
-                                        onClick={() => setActiveLesson(lesson)}
+                                        onClick={() => {
+                                            setActiveLesson(lesson);
+                                            setActiveQuiz(null);
+                                        }}
                                         className={`w-full flex items-center justify-between text-left p-3.5 rounded-2xl transition-all ${
                                             isSelected 
                                             ? 'bg-indigo-500 text-white font-extrabold shadow-md shadow-indigo-500/20' 
@@ -320,6 +367,54 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                     </button>
                                 );
                             })}
+
+                            {/* Course Quizzes */}
+                            {quizzes.length > 0 && (
+                                <div className="flex flex-col gap-2 mt-6">
+                                    <div className="flex items-center gap-2 mb-2 border-b border-slate-50 dark:border-neutral-800/50 pb-2">
+                                        <span className="text-xl">🏆</span>
+                                        <h3 className="font-black text-slate-800 dark:text-neutral-200">Course Quizzes</h3>
+                                    </div>
+                                    {quizzes.map((quiz, idx) => {
+                                        const isSelected = activeQuiz?.id === quiz.id;
+                                        const attempt = quizAttempts.find(a => a.quiz_id === quiz.id);
+                                        const isCompleted = !!attempt;
+
+                                        return (
+                                            <button
+                                                key={quiz.id}
+                                                onClick={() => {
+                                                    setActiveQuiz(quiz);
+                                                    setActiveLesson(null);
+                                                }}
+                                                className={`w-full flex items-center justify-between text-left p-3.5 rounded-2xl transition-all ${
+                                                    isSelected 
+                                                    ? 'bg-amber-500 text-white font-extrabold shadow-md shadow-amber-500/20' 
+                                                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-neutral-800/50 dark:text-neutral-300'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <span className="text-xs font-black opacity-75">
+                                                        Q{idx + 1}.
+                                                    </span>
+                                                    <span className="text-sm font-bold truncate">
+                                                        {quiz.title}
+                                                    </span>
+                                                </div>
+
+                                                {isCompleted && attempt ? (
+                                                    <div className={`flex items-center gap-1 text-xs font-black ${isSelected ? 'text-white' : 'text-emerald-500'}`}>
+                                                        <span>{attempt.score}/{attempt.total_questions}</span>
+                                                        <CheckCircle className="size-4 shrink-0" />
+                                                    </div>
+                                                ) : (
+                                                    <Circle className={`size-4.5 shrink-0 opacity-40`} />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -709,6 +804,13 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
                                 </motion.div>
                             </AnimatePresence>
                         )}
+
+                        {activeQuiz && (
+                            <QuizPlayerView
+                                quiz={activeQuiz}
+                                latestAttempt={quizAttempts.find(a => a.quiz_id === activeQuiz.id)}
+                            />
+                        )}
                     </div>
 
                 </div>
@@ -717,3 +819,308 @@ export default function Show({ course, lessons = [], completedLessonIds = [] }: 
         </AppLayout>
     );
 }
+
+interface QuizPlayerViewProps {
+    quiz: Quiz;
+    latestAttempt?: QuizAttempt;
+}
+
+function QuizPlayerView({ quiz, latestAttempt }: QuizPlayerViewProps) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [answers, setAnswers] = useState<Record<number, number>>({});
+    const [isRetaking, setIsRetaking] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // If there is a latest attempt and we're not retaking, show the results!
+    const showResults = latestAttempt && !isRetaking;
+
+    const questions = quiz.questions || [];
+    const totalQuestions = questions.length;
+    const currentQuestion = questions[currentQuestionIndex];
+
+    const handleSelectOption = (questionId: number, optionId: number) => {
+        setAnswers(prev => ({
+            ...prev,
+            [questionId]: optionId
+        }));
+    };
+
+    const handleNext = () => {
+        if (currentQuestionIndex < totalQuestions - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(prev => prev - 1);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (Object.keys(answers).length < totalQuestions) {
+            alert("Please answer all questions before submitting!");
+            return;
+        }
+
+        setIsSubmitting(true);
+        router.post(`/quizzes/${quiz.id}/submit`, { answers }, {
+            preserveScroll: true,
+            onFinish: () => {
+                setIsSubmitting(false);
+                setIsRetaking(false);
+                setAnswers({});
+                setCurrentQuestionIndex(0);
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+        });
+    };
+
+    if (totalQuestions === 0) {
+        return (
+            <div className="bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-800 rounded-3xl p-8 text-center flex flex-col items-center gap-3">
+                <span className="text-4xl">📭</span>
+                <h3 className="font-black text-slate-800 dark:text-neutral-200">This quiz has no questions!</h3>
+                <p className="text-xs text-slate-400">Please check back later or contact the administrator.</p>
+            </div>
+        );
+    }
+
+    if (showResults && latestAttempt) {
+        const scorePercent = Math.round((latestAttempt.score / latestAttempt.total_questions) * 100);
+        
+        return (
+            <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-6"
+            >
+                {/* Score Summary Card */}
+                <div className="bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-800 rounded-3xl p-8 shadow-sm text-center flex flex-col items-center gap-4">
+                    <div className="size-20 rounded-full bg-amber-50 dark:bg-amber-955/20 flex items-center justify-center text-amber-500 text-4xl animate-bounce">
+                        🏆
+                    </div>
+                    <div>
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Quiz Completed!</span>
+                        <h2 className="text-2xl font-black text-slate-800 dark:text-neutral-200 mt-1">
+                            {quiz.title}
+                        </h2>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1 bg-slate-50 dark:bg-neutral-850 px-8 py-4 rounded-2xl border border-slate-100 dark:border-neutral-800/55 min-w-[200px]">
+                        <span className="text-3xl font-black text-indigo-500">
+                            {latestAttempt.score} / {latestAttempt.total_questions}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">
+                            Your Score ({scorePercent}%)
+                        </span>
+                    </div>
+
+                    <p className="text-sm text-slate-500 dark:text-neutral-400 max-w-sm">
+                        {scorePercent >= 80 
+                            ? "Awesome job! You are a true explorer of this world! 🌟🚀" 
+                            : scorePercent >= 50 
+                            ? "Good effort! Keep learning and try again to get a perfect score! 📖" 
+                            : "Keep practicing! Review the lessons and try again. You can do it! 💪"}
+                    </p>
+
+                    <button
+                        onClick={() => {
+                            setIsRetaking(true);
+                            setAnswers({});
+                            setCurrentQuestionIndex(0);
+                        }}
+                        className="rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm py-3 px-8 transition-all active:scale-95 shadow-md shadow-amber-500/20 mt-2"
+                    >
+                        Retake Quiz 🔄
+                    </button>
+                </div>
+
+                {/* Question Review Section */}
+                <div className="bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-800 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+                    <h3 className="font-black text-slate-800 dark:text-neutral-200 text-base">
+                        Review Your Answers 📝
+                    </h3>
+
+                    <div className="flex flex-col gap-4">
+                        {questions.map((question, qIdx) => {
+                            const selectedOptionId = latestAttempt.answers?.[question.id];
+                            const correctOption = question.options.find(o => o.is_correct);
+                            const isUserCorrect = selectedOptionId === correctOption?.id;
+
+                            return (
+                                <div 
+                                    key={question.id}
+                                    className={`p-4 rounded-2xl border flex flex-col gap-3 ${
+                                        isUserCorrect 
+                                        ? 'bg-emerald-50/20 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/40' 
+                                        : 'bg-rose-50/20 border-rose-100 dark:bg-rose-950/10 dark:border-rose-900/40'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-start gap-3">
+                                        <h4 className="text-xs font-black text-slate-800 dark:text-neutral-200">
+                                            {qIdx + 1}. {question.question_text}
+                                        </h4>
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                            isUserCorrect 
+                                            ? 'bg-emerald-105 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' 
+                                            : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
+                                        }`}>
+                                            {isUserCorrect ? 'Correct ✅' : 'Incorrect ❌'}
+                                        </span>
+                                    </div>
+
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        {question.options.map((option) => {
+                                            const isSelected = selectedOptionId === option.id;
+                                            const isOptionCorrect = option.is_correct;
+
+                                            let optionClass = "bg-white dark:bg-neutral-900 border-slate-100 dark:border-neutral-800 text-slate-505 text-slate-500";
+                                            if (isSelected) {
+                                                optionClass = isOptionCorrect 
+                                                    ? "bg-emerald-500 text-white border-emerald-600 shadow-sm"
+                                                    : "bg-rose-500 text-white border-rose-600 shadow-sm";
+                                            } else if (isOptionCorrect) {
+                                                optionClass = "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-700 dark:text-emerald-400 font-extrabold";
+                                            }
+
+                                            return (
+                                                <div 
+                                                    key={option.id}
+                                                    className={`p-3 rounded-xl border text-xs leading-relaxed truncate ${optionClass}`}
+                                                    title={option.option_text}
+                                                >
+                                                    {option.option_text}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    // ── QUIZ TAKING INTERFACE ──
+    const hasAnsweredCurrent = answers[currentQuestion.id] !== undefined;
+
+    return (
+        <motion.div
+            key={quiz.id}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-6"
+        >
+            <div className="bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-800 rounded-3xl p-6 shadow-sm">
+                <div className="flex items-center gap-2">
+                    <span className="inline-block rounded-full bg-amber-100 text-amber-600 dark:bg-amber-955/50 dark:text-amber-400 px-3 py-1 text-xs font-black">
+                        Quiz Quest 🏆
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">
+                        {Object.keys(answers).length} / {totalQuestions} Answered
+                    </span>
+                </div>
+                <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-neutral-200 mt-2">
+                    {quiz.title}
+                </h2>
+                {quiz.description && (
+                    <p className="mt-2 text-slate-600 dark:text-neutral-400 text-sm font-medium">
+                        {quiz.description}
+                    </p>
+                )}
+            </div>
+
+            {/* Stepper Progress Bar */}
+            <div className="flex flex-col gap-1.5 px-2">
+                <div className="flex justify-between text-xs font-extrabold text-slate-400">
+                    <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
+                    <span>{Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-neutral-800 overflow-hidden">
+                    <div 
+                        className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                        style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
+                    ></div>
+                </div>
+            </div>
+
+            {/* Question Panel */}
+            <div className="bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-800 rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+                <h3 className="text-base font-black text-slate-800 dark:text-neutral-200 leading-snug">
+                    {currentQuestion.question_text}
+                </h3>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {currentQuestion.options.map((option, idx) => {
+                        const isSelected = answers[currentQuestion.id] === option.id;
+                        const letter = String.fromCharCode(65 + idx); // A, B, C, D
+
+                        return (
+                            <button
+                                key={option.id}
+                                onClick={() => handleSelectOption(currentQuestion.id, option.id)}
+                                className={`flex items-center gap-3.5 p-4 rounded-2xl border-2 text-left transition-all duration-150 active:scale-98 ${
+                                    isSelected 
+                                    ? 'bg-amber-50 border-amber-500 dark:bg-amber-955/20 text-amber-700 dark:text-amber-400 font-extrabold ring-2 ring-amber-500/10' 
+                                    : 'bg-slate-50 hover:bg-slate-100/80 border-slate-100 dark:bg-neutral-850 dark:border-neutral-800 text-slate-700 dark:text-neutral-300'
+                                }`}
+                            >
+                                <span className={`size-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                                    isSelected
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-white dark:bg-neutral-900 border border-slate-200/50 text-slate-500'
+                                }`}>
+                                    {letter}
+                                </span>
+                                <span className="text-xs font-extrabold leading-relaxed">{option.option_text}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center bg-white dark:bg-neutral-900 border border-slate-100 dark:border-neutral-850 p-4 rounded-3xl shadow-sm">
+                <button
+                    type="button"
+                    onClick={handlePrev}
+                    disabled={currentQuestionIndex === 0}
+                    className="flex items-center gap-1 text-slate-500 font-black text-xs hover:bg-slate-50 px-4 py-2.5 rounded-xl disabled:opacity-30 active:scale-95 transition-all"
+                >
+                    <ChevronLeft className="size-4" />
+                    Back
+                </button>
+
+                {currentQuestionIndex < totalQuestions - 1 ? (
+                    <button
+                        type="button"
+                        onClick={handleNext}
+                        disabled={!hasAnsweredCurrent}
+                        className="flex items-center gap-1 bg-indigo-500 text-white font-black text-xs hover:bg-indigo-600 px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:hover:bg-indigo-500 active:scale-95 transition-all"
+                    >
+                        Next
+                        <ChevronRight className="size-4" />
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={Object.keys(answers).length < totalQuestions || isSubmitting}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-black text-xs hover:from-amber-600 hover:to-yellow-600 px-6 py-2.5 rounded-xl disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                        {isSubmitting ? 'Submitting...' : 'Submit Quiz 🚀'}
+                    </button>
+                )}
+            </div>
+        </motion.div>
+    );
+}
+

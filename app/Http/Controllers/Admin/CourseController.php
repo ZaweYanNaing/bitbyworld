@@ -15,7 +15,7 @@ class CourseController extends Controller
      */
     public function index()
     {
-        $courses = Course::with('lessons.images', 'lessons.audios')->withCount('enrollments')->get();
+        $courses = Course::with(['lessons.images', 'lessons.audios', 'quizzes.questions.options'])->withCount('enrollments')->get();
 
         return Inertia::render('admin/courses', [
             'courses' => $courses,

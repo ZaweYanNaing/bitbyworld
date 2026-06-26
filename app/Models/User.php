@@ -82,4 +82,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(LessonCompletion::class);
     }
+
+    /**
+     * Get quiz attempts for the user.
+     */
+    public function quizAttempts()
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
 }

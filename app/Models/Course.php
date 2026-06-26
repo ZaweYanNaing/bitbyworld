@@ -38,4 +38,12 @@ class Course extends Model
     {
         return $this->belongsToMany(User::class, 'enrollments');
     }
+
+    /**
+     * Get quizzes in this course.
+     */
+    public function quizzes()
+    {
+        return $this->hasMany(Quiz::class);
+    }
 }
