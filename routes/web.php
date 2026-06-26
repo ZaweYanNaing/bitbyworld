@@ -63,6 +63,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     // Quiz Question Management
     Route::post('quizzes/{quiz}/questions', [AdminQuestionController::class, 'store'])->name('admin.questions.store');
     Route::put('questions/{question}', [AdminQuestionController::class, 'update'])->name('admin.questions.update');
+    Route::post('questions/{question}', [AdminQuestionController::class, 'update'])->name('admin.questions.update.post');
     Route::delete('questions/{question}', [AdminQuestionController::class, 'destroy'])->name('admin.questions.destroy');
 
     // Lesson Media Management

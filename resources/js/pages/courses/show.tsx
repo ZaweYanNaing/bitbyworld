@@ -48,6 +48,7 @@ interface QuizQuestion {
     id: number;
     quiz_id: number;
     question_text: string;
+    image_path: string | null;
     sort_order: number;
     options: QuizOption[];
 }
@@ -826,6 +827,7 @@ interface QuizPlayerViewProps {
 }
 
 function QuizPlayerView({ quiz, latestAttempt }: QuizPlayerViewProps) {
+    const { storageUrl } = usePage().props;
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
     const [isRetaking, setIsRetaking] = useState(false);
@@ -1058,6 +1060,16 @@ function QuizPlayerView({ quiz, latestAttempt }: QuizPlayerViewProps) {
                     {currentQuestion.question_text}
                 </h3>
 
+                {/* Optional question image */}
+                {currentQuestion.image_path && (
+                    <div className="w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-neutral-800 shadow-sm">
+                        <img
+                            src={`${storageUrl}/${currentQuestion.image_path}`}
+                            alt="Question image"
+                            className="w-full max-h-64 object-contain bg-slate-50 dark:bg-neutral-950"
+                        />
+                    </div>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                     {currentQuestion.options.map((option, idx) => {
                         const isSelected = answers[currentQuestion.id] === option.id;

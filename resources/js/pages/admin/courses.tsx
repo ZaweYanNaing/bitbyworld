@@ -43,6 +43,7 @@ interface QuizQuestion {
     id: number;
     quiz_id: number;
     question_text: string;
+    image_path: string | null;
     sort_order: number;
     options: QuizOption[];
 }
@@ -125,6 +126,8 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
     // Inertia form for Questions
     const questionForm = useForm({
         question_text: '',
+        image_file: null as File | null,
+        remove_image: '0',
         options: [
             { option_text: '', is_correct: true },
             { option_text: '', is_correct: false },
@@ -132,6 +135,10 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
             { option_text: '', is_correct: false },
         ] as QuizOption[],
     });
+
+    // Local preview URL for question image
+    const [questionImagePreview, setQuestionImagePreview] = useState<string | null>(null);
+    const [keepExistingImage, setKeepExistingImage] = useState(true);
 
     // Sync selected course lessons details if props refresh
     const activeCourseDetail = selectedCourseForLessons 
@@ -342,14 +349,20 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
         questionForm.reset();
         questionForm.clearErrors();
         setEditingQuestion(null);
+        setQuestionImagePreview(null);
+        setKeepExistingImage(true);
         setIsQuestionFormOpen(true);
     };
 
     const openEditQuestionForm = (question: QuizQuestion) => {
         questionForm.clearErrors();
         setEditingQuestion(question);
+        setQuestionImagePreview(null);
+        setKeepExistingImage(true);
         questionForm.setData({
             question_text: question.question_text,
+            image_file: null,
+            remove_image: '0',
             options: question.options.map(opt => ({
                 option_text: opt.option_text,
                 is_correct: opt.is_correct,
@@ -362,20 +375,24 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
         e.preventDefault();
         if (!selectedQuizForQuestions) return;
 
+        const onSuccess = () => {
+            setIsQuestionFormOpen(false);
+            questionForm.reset();
+            setEditingQuestion(null);
+            setQuestionImagePreview(null);
+            setKeepExistingImage(true);
+        };
+
         if (editingQuestion) {
-            questionForm.put(`/admin/questions/${editingQuestion.id}`, {
-                onSuccess: () => {
-                    setIsQuestionFormOpen(false);
-                    questionForm.reset();
-                    setEditingQuestion(null);
-                }
+            // POST with _method spoofing for multipart/form-data file upload support
+            questionForm.post(`/admin/questions/${editingQuestion.id}`, {
+                forceFormData: true,
+                onSuccess,
             });
         } else {
             questionForm.post(`/admin/quizzes/${selectedQuizForQuestions.id}/questions`, {
-                onSuccess: () => {
-                    setIsQuestionFormOpen(false);
-                    questionForm.reset();
-                }
+                forceFormData: true,
+                onSuccess,
             });
         }
     };
@@ -531,7 +548,7 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
 
                                     {isQuestionFormOpen ? (
                                         /* ── QUESTION CREATE/EDIT FORM ── */
-                                        <form onSubmit={handleQuestionSubmit} className="flex flex-col gap-4 bg-slate-50 dark:bg-neutral-950/40 p-4 rounded-2xl border border-slate-100/50 dark:border-neutral-800 max-h-[550px] overflow-y-auto">
+                                        <form onSubmit={handleQuestionSubmit} className="flex flex-col gap-4 bg-slate-50 dark:bg-neutral-950/40 p-4 rounded-2xl border border-slate-100/50 dark:border-neutral-800 max-h-[580px] overflow-y-auto">
                                             <h4 className="text-xs font-black text-slate-700 dark:text-neutral-300">
                                                 {editingQuestion ? 'Edit Question' : 'Add New Question'}
                                             </h4>
@@ -547,6 +564,86 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                                                     className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 font-semibold"
                                                     required
                                                 />
+                                            </div>
+
+                                            {/* Optional Question Image */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-[10px] font-black text-slate-400 flex items-center gap-1">
+                                                    <ImageIcon className="size-3" />
+                                                    Question Image <span className="font-normal text-slate-300 dark:text-neutral-600">(optional)</span>
+                                                </label>
+
+                                                {/* Show existing image when editing (and not removed / replaced) */}
+                                                {editingQuestion?.image_path && keepExistingImage && !questionImagePreview && (
+                                                    <div className="relative w-full rounded-lg overflow-hidden border border-slate-200 dark:border-neutral-700">
+                                                        <img
+                                                            src={`${storageUrl}/${editingQuestion.image_path}`}
+                                                            alt="Current question image"
+                                                            className="w-full max-h-32 object-cover"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setKeepExistingImage(false);
+                                                                questionForm.setData('remove_image', '1');
+                                                            }}
+                                                            className="absolute top-1.5 right-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full size-5 flex items-center justify-center shadow"
+                                                            title="Remove image"
+                                                        >
+                                                            <X className="size-3" />
+                                                        </button>
+                                                        <span className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[9px] font-bold text-center py-0.5">Current Image</span>
+                                                    </div>
+                                                )}
+
+                                                {/* New image preview */}
+                                                {questionImagePreview && (
+                                                    <div className="relative w-full rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-900">
+                                                        <img
+                                                            src={questionImagePreview}
+                                                            alt="New question image preview"
+                                                            className="w-full max-h-32 object-cover"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setQuestionImagePreview(null);
+                                                                questionForm.setData('image_file', null);
+                                                                setKeepExistingImage(true);
+                                                                questionForm.setData('remove_image', '0');
+                                                            }}
+                                                            className="absolute top-1.5 right-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full size-5 flex items-center justify-center shadow"
+                                                            title="Remove preview"
+                                                        >
+                                                            <X className="size-3" />
+                                                        </button>
+                                                        <span className="absolute bottom-0 left-0 right-0 bg-indigo-600/60 text-white text-[9px] font-bold text-center py-0.5">New Image Preview</span>
+                                                    </div>
+                                                )}
+
+                                                {/* File input — always shown */}
+                                                <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-neutral-900 border border-dashed border-slate-200 dark:border-neutral-700 rounded-lg px-3 py-2 hover:border-indigo-300 transition-colors group">
+                                                    <ImageIcon className="size-3.5 text-slate-400 group-hover:text-indigo-400 shrink-0" />
+                                                    <span className="text-[10px] font-bold text-slate-400 group-hover:text-indigo-500">
+                                                        {questionImagePreview ? 'Replace image...' : 'Upload image...'}
+                                                    </span>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0] || null;
+                                                            if (file) {
+                                                                questionForm.setData('image_file', file);
+                                                                questionForm.setData('remove_image', '0');
+                                                                setKeepExistingImage(false);
+                                                                const reader = new FileReader();
+                                                                reader.onload = ev => setQuestionImagePreview(ev.target?.result as string);
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                    />
+                                                </label>
                                             </div>
 
                                             {/* Choices list */}
@@ -652,6 +749,16 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                                                             key={question.id}
                                                             className="bg-slate-50 dark:bg-neutral-800/35 border border-slate-100/60 dark:border-neutral-800/60 rounded-2xl p-4 flex flex-col gap-2.5"
                                                         >
+                                                            {/* Question image thumbnail (if present) */}
+                                                            {question.image_path && (
+                                                                <div className="w-full rounded-lg overflow-hidden border border-slate-100 dark:border-neutral-700">
+                                                                    <img
+                                                                        src={`${storageUrl}/${question.image_path}`}
+                                                                        alt="Question image"
+                                                                        className="w-full max-h-24 object-cover"
+                                                                    />
+                                                                </div>
+                                                            )}
                                                             <div className="flex justify-between items-start">
                                                                 <h5 className="text-xs font-black text-slate-800 dark:text-neutral-200 leading-tight">
                                                                     Q{idx + 1}. {question.question_text}
