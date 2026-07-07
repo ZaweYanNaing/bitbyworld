@@ -14,6 +14,8 @@ services:
         volumes:
             # Persist uploaded files (lesson images, audio) across deployments
             - storage_data:/var/www/storage/app
+            # Share Vite build output with nginx
+            - build_assets:/var/www/public/build
             # Persist log files
             - ./storage/logs:/var/www/storage/logs
         networks:
@@ -33,6 +35,8 @@ services:
         volumes:
             # Serve static files (public/, public/build/, public/storage)
             - .:/var/www
+            # Vite build assets (built inside app container, shared via volume)
+            - build_assets:/var/www/public/build
             # Persist uploaded files (lesson images, audio) across deployments
             - storage_data:/var/www/storage/app
             # Nginx config + startup script (creates public/storage symlink)
@@ -72,4 +76,6 @@ volumes:
     mysql_data:
         driver: local
     storage_data:
+        driver: local
+    build_assets:
         driver: local

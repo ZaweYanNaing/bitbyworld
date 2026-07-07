@@ -56,6 +56,10 @@ echo "→ Building application image (includes npm build)..."
 docker compose -f "${COMPOSE_FILE}" build --no-cache app
 
 echo ""
+echo "→ Building frontend assets (shared with nginx)..."
+docker compose -f "${COMPOSE_FILE}" run --rm --no-deps "${APP_SERVICE}" npm run build
+
+echo ""
 echo "→ Starting containers..."
 docker compose -f "${COMPOSE_FILE}" up -d
 
