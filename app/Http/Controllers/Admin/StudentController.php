@@ -12,19 +12,68 @@ use Inertia\Inertia;
 class StudentController extends Controller
 {
     /**
-     * Display lists of students and courses.
+     * Display lists of students and courses with search, filter, and sort.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $students = User::where('role', 'student')
-            ->with(['enrollments.course'])
-            ->get();
+        $search = $request->input('search', '');
+        $courseFilter = $request->input('course', '');
+        $statusFilter = $request->input('status', '');
+        $sortBy = $request->input('sort', 'name');
+        $sortDir = $request->input('direction', 'asc');
+
+        $query = User::where('role', 'student')
+            ->with(['enrollments.course']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($courseFilter) {
+            $query->whereHas('enrollments', fn ($q) => $q->where('course_id', $courseFilter));
+        }
+
+        if ($statusFilter === 'enrolled') {
+            $query->has('enrollments');
+        } elseif ($statusFilter === 'not_enrolled') {
+            $query->doesntHave('enrollments');
+        }
+
+        $allowedSorts = ['name', 'email', 'created_at'];
+        if (! in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'name';
+        }
+        $sortDir = $sortDir === 'desc' ? 'desc' : 'asc';
+
+        if ($sortBy === 'name' || $sortBy === 'email' || $sortBy === 'created_at') {
+            $query->orderBy($sortBy, $sortDir);
+        }
+
+        $students = $query->get();
+
+        if ($sortBy === 'enrollments') {
+            $students = $students->sortBy(
+                fn ($student) => $student->enrollments->count(),
+                SORT_REGULAR,
+                $sortDir === 'desc'
+            )->values();
+        }
 
         $courses = Course::all();
 
         return Inertia::render('admin/students', [
             'students' => $students,
             'courses' => $courses,
+            'filters' => [
+                'search' => $search,
+                'course' => $courseFilter,
+                'status' => $statusFilter,
+                'sort' => $sortBy,
+                'direction' => $sortDir,
+            ],
         ]);
     }
 

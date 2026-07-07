@@ -5,9 +5,11 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Admin\LessonController as AdminLessonController;
 use App\Http\Controllers\Admin\QuizController as AdminQuizController;
+use App\Http\Controllers\Admin\QuizManagementController as AdminQuizManagementController;
 use App\Http\Controllers\Admin\QuestionController as AdminQuestionController;
 
 Route::get('/', function () {
@@ -23,7 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
         if ($user->role === 'admin') {
-            return redirect()->route('admin.courses.index');
+            return redirect()->route('admin.dashboard');
         }
 
         // Student Dashboard: Load only enrolled courses with their lessons
@@ -44,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // Admin Only Routes
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(function () {
+    Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+
     // Course Management (Note: update uses POST due to multipart/form-data with file uploads)
     Route::get('courses', [AdminCourseController::class, 'index'])->name('admin.courses.index');
     Route::post('courses', [AdminCourseController::class, 'store'])->name('admin.courses.store');
@@ -59,6 +63,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::post('courses/{course}/quizzes', [AdminQuizController::class, 'store'])->name('admin.quizzes.store');
     Route::put('quizzes/{quiz}', [AdminQuizController::class, 'update'])->name('admin.quizzes.update');
     Route::delete('quizzes/{quiz}', [AdminQuizController::class, 'destroy'])->name('admin.quizzes.destroy');
+    Route::patch('quizzes/{quiz}/toggle-open', [AdminQuizManagementController::class, 'toggleOpen'])->name('admin.quizzes.toggle-open');
+    Route::get('quizzes/{quiz}/results', [AdminQuizManagementController::class, 'results'])->name('admin.quizzes.results');
+    Route::post('quizzes/{quiz}/grant-retake', [AdminQuizManagementController::class, 'grantRetake'])->name('admin.quizzes.grant-retake');
 
     // Quiz Question Management
     Route::post('quizzes/{quiz}/questions', [AdminQuestionController::class, 'store'])->name('admin.questions.store');

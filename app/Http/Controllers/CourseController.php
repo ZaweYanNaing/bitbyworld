@@ -7,6 +7,7 @@ use App\Models\Lesson;
 use App\Models\LessonCompletion;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\QuizRetakeGrant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -32,8 +33,12 @@ class CourseController extends Controller
             ->pluck('lesson_id')
             ->toArray();
 
-        // Load quizzes and their questions/options
-        $quizzes = $course->quizzes()->with('questions.options')->get();
+        // Load quizzes and their questions/options (students only see open quizzes)
+        $quizzesQuery = $course->quizzes()->with('questions.options');
+        if ($user->role !== 'admin') {
+            $quizzesQuery->where('is_open', true);
+        }
+        $quizzes = $quizzesQuery->get();
 
         // Get the latest attempt for each quiz by the current user
         $quizAttempts = $user->quizAttempts()
@@ -43,12 +48,20 @@ class CourseController extends Controller
             ->unique('quiz_id')
             ->values();
 
+        // Check for pending retake grants
+        $retakeGrants = QuizRetakeGrant::where('user_id', $user->id)
+            ->whereIn('quiz_id', $quizzes->pluck('id'))
+            ->whereNull('used_at')
+            ->pluck('quiz_id')
+            ->toArray();
+
         return Inertia::render('courses/show', [
             'course' => $course,
             'lessons' => $lessons,
             'completedLessonIds' => $completedLessonIds,
             'quizzes' => $quizzes,
             'quizAttempts' => $quizAttempts,
+            'retakeGrantQuizIds' => $retakeGrants,
         ]);
     }
 
@@ -84,6 +97,28 @@ class CourseController extends Controller
         $isEnrolled = $user->courses()->where('course_id', $quiz->course_id)->exists();
         if (!$isEnrolled && $user->role !== 'admin') {
             abort(403, 'You are not enrolled in this adventure!');
+        }
+
+        // Students can only submit when quiz is open
+        if ($user->role !== 'admin' && ! $quiz->is_open) {
+            abort(403, 'This quiz is not open for taking.');
+        }
+
+        $existingAttempt = QuizAttempt::where('user_id', $user->id)
+            ->where('quiz_id', $quiz->id)
+            ->exists();
+
+        if ($existingAttempt && $user->role !== 'admin') {
+            $retakeGrant = QuizRetakeGrant::where('user_id', $user->id)
+                ->where('quiz_id', $quiz->id)
+                ->whereNull('used_at')
+                ->first();
+
+            if (! $retakeGrant) {
+                abort(403, 'You have already taken this quiz. Ask your teacher for another attempt.');
+            }
+
+            $retakeGrant->update(['used_at' => now()]);
         }
 
         $request->validate([

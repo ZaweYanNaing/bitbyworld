@@ -1,11 +1,11 @@
-import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { 
     Plus, Edit2, Trash2, Video, Volume2, Image as ImageIcon, 
     X, AlertTriangle, ExternalLink, Settings, ArrowRight,
-    Play, ChevronRight, FileText, Music, Save
+    Play, ChevronRight, FileText, Music, Save, Lock, Unlock, BarChart3
 } from 'lucide-react';
 
 interface LessonImage {
@@ -53,6 +53,7 @@ interface Quiz {
     course_id: number;
     title: string;
     description: string | null;
+    is_open: boolean;
     questions: QuizQuestion[];
     created_at: string;
     updated_at: string;
@@ -77,7 +78,7 @@ interface AdminCoursesProps {
 export default function Courses({ courses = [] }: AdminCoursesProps) {
     const { storageUrl } = usePage().props;
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Dashboard', href: '/admin/dashboard' },
         { title: 'Manage Courses', href: '/admin/courses' },
     ];
 
@@ -342,6 +343,10 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                 }
             });
         }
+    };
+
+    const handleToggleQuizOpen = (quizId: number) => {
+        router.patch(`/admin/quizzes/${quizId}/toggle-open`, {}, { preserveScroll: true });
     };
 
     // Question CRUD Handlers
@@ -1160,13 +1165,41 @@ export default function Courses({ courses = [] }: AdminCoursesProps) {
                                                                     <h5 className="text-xs font-black text-slate-800 dark:text-neutral-200 truncate">
                                                                         {quiz.title}
                                                                     </h5>
-                                                                    <span className="inline-block rounded-full bg-amber-50 dark:bg-amber-950/45 px-1.5 py-0.5 text-[9px] font-black text-amber-600 mt-1">
-                                                                        {quiz.questions?.length || 0} Questions
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                                        <span className="inline-block rounded-full bg-amber-50 dark:bg-amber-950/45 px-1.5 py-0.5 text-[9px] font-black text-amber-600">
+                                                                            {quiz.questions?.length || 0} Questions
+                                                                        </span>
+                                                                        <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${
+                                                                            quiz.is_open
+                                                                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/45'
+                                                                                : 'bg-slate-100 text-slate-400 dark:bg-neutral-800'
+                                                                        }`}>
+                                                                            {quiz.is_open ? <Unlock className="size-2.5" /> : <Lock className="size-2.5" />}
+                                                                            {quiz.is_open ? 'Open' : 'Closed'}
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
 
                                                                 {/* Quiz Actions */}
                                                                 <div className="flex items-center gap-1 ml-2">
+                                                                    <button
+                                                                        onClick={() => handleToggleQuizOpen(quiz.id)}
+                                                                        className={`size-7 rounded-lg flex items-center justify-center transition-all ${
+                                                                            quiz.is_open
+                                                                                ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                                                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-neutral-800'
+                                                                        }`}
+                                                                        title={quiz.is_open ? 'Close quiz for students' : 'Open quiz for students'}
+                                                                    >
+                                                                        {quiz.is_open ? <Unlock className="size-3" /> : <Lock className="size-3" />}
+                                                                    </button>
+                                                                    <Link
+                                                                        href={`/admin/quizzes/${quiz.id}/results`}
+                                                                        className="size-7 rounded-lg hover:bg-indigo-50 text-indigo-500 flex items-center justify-center"
+                                                                        title="View quiz results"
+                                                                    >
+                                                                        <BarChart3 className="size-3" />
+                                                                    </Link>
                                                                     <button
                                                                         onClick={() => openEditQuizModal(quiz)}
                                                                         className="size-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 flex items-center justify-center text-slate-500"

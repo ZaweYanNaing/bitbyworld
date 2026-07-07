@@ -3,8 +3,8 @@ import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { 
-    Users, Plus, Trash2, Edit2, ChevronDown, ChevronUp, 
-    BookOpen, Award, CheckCircle2, X, AlertTriangle 
+    Users, Trash2, Edit2, ChevronDown, ChevronUp, 
+    BookOpen, Award, CheckCircle2, X, Search, ArrowUpDown, Filter
 } from 'lucide-react';
 
 interface Course {
@@ -31,17 +31,53 @@ interface Student {
 interface AdminStudentsProps {
     students: Student[];
     courses: Course[];
+    filters: {
+        search: string;
+        course: string;
+        status: string;
+        sort: string;
+        direction: string;
+    };
 }
 
-export default function Students({ students = [], courses = [] }: AdminStudentsProps) {
+export default function Students({ students = [], courses = [], filters }: AdminStudentsProps) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Dashboard', href: '/admin/dashboard' },
         { title: 'Manage Students', href: '/admin/students' },
     ];
 
     const [expandedStudentId, setExpandedStudentId] = useState<number | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+    const [search, setSearch] = useState(filters?.search || '');
+    const [courseFilter, setCourseFilter] = useState(filters?.course || '');
+    const [statusFilter, setStatusFilter] = useState(filters?.status || '');
+    const [sortBy, setSortBy] = useState(filters?.sort || 'name');
+    const [sortDir, setSortDir] = useState(filters?.direction || 'asc');
+
+    const applyFilters = (overrides: Record<string, string> = {}) => {
+        router.get('/admin/students', {
+            search,
+            course: courseFilter,
+            status: statusFilter,
+            sort: sortBy,
+            direction: sortDir,
+            ...overrides,
+        }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        applyFilters();
+    };
+
+    const toggleSort = (field: string) => {
+        const newDir = sortBy === field && sortDir === 'asc' ? 'desc' : 'asc';
+        setSortBy(field);
+        setSortDir(newDir);
+        applyFilters({ sort: field, direction: newDir });
+    };
 
     // Selected course for enrollment per student
     const [selectedCourseEnroll, setSelectedCourseEnroll] = useState<Record<number, string>>({});
@@ -135,12 +171,86 @@ export default function Students({ students = [], courses = [] }: AdminStudentsP
                     </p>
                 </div>
 
+                {/* Search, Filter, Sort Controls */}
+                <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-slate-100 dark:border-neutral-800 p-5 shadow-sm">
+                    <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Search by name or email..."
+                                className="w-full rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 pl-10 pr-4 py-2.5 text-xs dark:text-neutral-200"
+                            />
+                        </div>
+                        <select
+                            value={courseFilter}
+                            onChange={e => { setCourseFilter(e.target.value); applyFilters({ course: e.target.value }); }}
+                            className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 px-3 py-2.5 text-xs dark:text-neutral-200 min-w-[160px]"
+                        >
+                            <option value="">All Courses</option>
+                            {courses.map(c => (
+                                <option key={c.id} value={c.id}>{c.title}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={statusFilter}
+                            onChange={e => { setStatusFilter(e.target.value); applyFilters({ status: e.target.value }); }}
+                            className="rounded-xl border border-slate-200 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-950 px-3 py-2.5 text-xs dark:text-neutral-200 min-w-[160px]"
+                        >
+                            <option value="">All Status</option>
+                            <option value="enrolled">Enrolled</option>
+                            <option value="not_enrolled">Not Enrolled</option>
+                        </select>
+                        <button
+                            type="submit"
+                            className="rounded-xl bg-indigo-500 text-white font-extrabold text-xs px-5 py-2.5 hover:bg-indigo-600 transition-all"
+                        >
+                            Search
+                        </button>
+                    </form>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <Filter className="size-3 text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Sort by:</span>
+                        {[
+                            { key: 'name', label: 'Name' },
+                            { key: 'email', label: 'Email' },
+                            { key: 'enrollments', label: 'Enrollments' },
+                        ].map(({ key, label }) => (
+                            <button
+                                key={key}
+                                onClick={() => toggleSort(key)}
+                                className={`flex items-center gap-1 text-[10px] font-black px-3 py-1 rounded-full transition-all ${
+                                    sortBy === key
+                                        ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
+                                        : 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
+                                }`}
+                            >
+                                {label}
+                                {sortBy === key && <ArrowUpDown className="size-3" />}
+                            </button>
+                        ))}
+                        <span className="text-[10px] font-bold text-slate-400 ml-auto">
+                            {students.length} student{students.length !== 1 ? 's' : ''} found
+                        </span>
+                    </div>
+                </div>
+
                 {/* Students List Container */}
                 {students.length === 0 ? (
                     <div className="bg-white dark:bg-neutral-900 rounded-3xl p-12 text-center border border-slate-100 dark:border-neutral-800">
                         <Users className="size-12 text-slate-300 mx-auto mb-3" />
-                        <h3 className="font-extrabold text-slate-700 dark:text-neutral-300 text-lg">No student accounts registered</h3>
-                        <p className="text-slate-400 dark:text-neutral-500 text-sm mt-1">Students can register themselves using the sign-up page.</p>
+                        <h3 className="font-extrabold text-slate-700 dark:text-neutral-300 text-lg">
+                            {filters?.search || filters?.course || filters?.status
+                                ? 'No students match your filters'
+                                : 'No student accounts registered'}
+                        </h3>
+                        <p className="text-slate-400 dark:text-neutral-500 text-sm mt-1">
+                            {filters?.search || filters?.course || filters?.status
+                                ? 'Try adjusting your search or filter criteria.'
+                                : 'Students can register themselves using the sign-up page.'}
+                        </p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-4">

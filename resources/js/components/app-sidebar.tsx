@@ -34,16 +34,15 @@ export function AppSidebar() {
     const user = auth.user;
     const isAdmin = user && user.role === 'admin';
 
-    const mainNavItems: NavItem[] = [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-    ];
+    const mainNavItems: NavItem[] = [];
 
     if (isAdmin) {
         mainNavItems.push(
+            {
+                title: 'Dashboard',
+                href: '/admin/dashboard',
+                icon: LayoutGrid,
+            },
             {
                 title: 'Manage Courses',
                 href: '/admin/courses',
@@ -55,6 +54,12 @@ export function AppSidebar() {
                 icon: Users,
             }
         );
+    } else {
+        mainNavItems.push({
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        });
     }
 
     return (
@@ -63,7 +68,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={isAdmin ? '/admin/dashboard' : dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

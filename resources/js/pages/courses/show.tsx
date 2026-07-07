@@ -79,6 +79,7 @@ interface ShowProps {
     completedLessonIds: number[];
     quizzes?: Quiz[];
     quizAttempts?: QuizAttempt[];
+    retakeGrantQuizIds?: number[];
 }
 
 export default function Show({ 
@@ -86,7 +87,8 @@ export default function Show({
     lessons = [], 
     completedLessonIds = [],
     quizzes = [],
-    quizAttempts = []
+    quizAttempts = [],
+    retakeGrantQuizIds = [],
 }: ShowProps) {
     const { storageUrl } = usePage().props;
     const breadcrumbs: BreadcrumbItem[] = [
@@ -810,6 +812,7 @@ export default function Show({
                             <QuizPlayerView
                                 quiz={activeQuiz}
                                 latestAttempt={quizAttempts.find(a => a.quiz_id === activeQuiz.id)}
+                                hasRetakeGrant={retakeGrantQuizIds.includes(activeQuiz.id)}
                             />
                         )}
                     </div>
@@ -824,9 +827,10 @@ export default function Show({
 interface QuizPlayerViewProps {
     quiz: Quiz;
     latestAttempt?: QuizAttempt;
+    hasRetakeGrant?: boolean;
 }
 
-function QuizPlayerView({ quiz, latestAttempt }: QuizPlayerViewProps) {
+function QuizPlayerView({ quiz, latestAttempt, hasRetakeGrant = false }: QuizPlayerViewProps) {
     const { storageUrl } = usePage().props;
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -931,16 +935,22 @@ function QuizPlayerView({ quiz, latestAttempt }: QuizPlayerViewProps) {
                             : "Keep practicing! Review the lessons and try again. You can do it! 💪"}
                     </p>
 
-                    <button
-                        onClick={() => {
-                            setIsRetaking(true);
-                            setAnswers({});
-                            setCurrentQuestionIndex(0);
-                        }}
-                        className="rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm py-3 px-8 transition-all active:scale-95 shadow-md shadow-amber-500/20 mt-2"
-                    >
-                        Retake Quiz 🔄
-                    </button>
+                    {hasRetakeGrant ? (
+                        <button
+                            onClick={() => {
+                                setIsRetaking(true);
+                                setAnswers({});
+                                setCurrentQuestionIndex(0);
+                            }}
+                            className="rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm py-3 px-8 transition-all active:scale-95 shadow-md shadow-amber-500/20 mt-2"
+                        >
+                            Retake Quiz 🔄
+                        </button>
+                    ) : (
+                        <p className="text-xs text-slate-400 font-bold mt-2 bg-slate-50 dark:bg-neutral-800 px-4 py-2 rounded-xl">
+                            You have completed this quiz. Ask your teacher for another attempt.
+                        </p>
+                    )}
                 </div>
 
                 {/* Question Review Section */}

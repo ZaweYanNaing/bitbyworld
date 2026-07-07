@@ -10,6 +10,11 @@ class Quiz extends Model
         'course_id',
         'title',
         'description',
+        'is_open',
+    ];
+
+    protected $casts = [
+        'is_open' => 'boolean',
     ];
 
     /**
@@ -34,5 +39,13 @@ class Quiz extends Model
     public function attempts()
     {
         return $this->hasMany(QuizAttempt::class);
+    }
+
+    /**
+     * Get retake grants for the quiz.
+     */
+    public function retakeGrants()
+    {
+        return $this->hasMany(QuizRetakeGrant::class);
     }
 }
